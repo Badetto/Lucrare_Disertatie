@@ -1,0 +1,6 @@
+@RefactorAI.Backend_HostAddress = http://localhost:5153
+
+GET {{RefactorAI.Backend_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
