@@ -1,0 +1,65 @@
+/* The main container allows scrolling if content gets too tall */
+.pageContainer {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  background-color: #f8fafc;
+  overflow-y: auto; /* Enables vertical scrolling */
+}
+
+.header {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.header h1 {
+  color: #1e293b;
+  margin-bottom: 0.5rem;
+}
+
+/* Fixed height for editors ensures they don't shrink/grow weirdly */
+.editorContainer {
+  display: flex;
+  gap: 20px;
+  height: 600px; /* Tall enough to see code */
+  margin-bottom: 30px; /* Space for the dashboard below */
+  flex-shrink: 0; /* Prevents shrinking when dashboard appears */
+}
+
+.pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+}
+
+.paneHeader {
+  padding: 10px 15px;
+  background-color: #f1f5f9;
+  border-bottom: 1px solid #e2e8f0;
+  font-weight: bold;
+  color: #475569;
+}
+
+/* Animation for when the dashboard appears */
+.dashboardSection {
+  animation: fadeIn 0.5s ease-in;
+  padding-bottom: 40px; /* Extra space at bottom of page */
+}
+
+.dashboardTitle {
+  color: #475569;
+  margin-bottom: 15px;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 10px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}

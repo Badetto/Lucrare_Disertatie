@@ -7,4 +7,6 @@ public class RefactorResponse
     
     // NEW: A specific list of changes for the tooltips
     public List<CodeChange> Changes { get; set; } = new();
+
+    public MetricsComparison Metrics { get; set; } = new();
 }

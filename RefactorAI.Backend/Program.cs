@@ -20,6 +20,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddControllers();
 builder.Services.AddHttpClient(); // Allows us to make web requests
 builder.Services.AddScoped<IAiGenerationService, AiGenerationService>(); // Registers our new service
+builder.Services.AddScoped<ICodeMetricsService, CodeMetricsService>();
 
 var app = builder.Build();
 
