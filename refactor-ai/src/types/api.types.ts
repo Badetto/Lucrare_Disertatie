@@ -45,6 +45,11 @@ export interface FileTreeNode {
   fullPath: string;
   type: 'file' | 'folder';
   children: FileTreeNode[];
+
+  cyclomaticComplexity?: number;
+  linesOfCode?: number;
+  maxNestingDepth?: number;
+  riskScore?: number;
 }
 
 export interface CloneRequest {
