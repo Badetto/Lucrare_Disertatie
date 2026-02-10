@@ -7,6 +7,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="TempRepos\**" />
+    <Content Remove="TempRepos\**" />  <EmbeddedResource Remove="TempRepos\**" />
+    <None Remove="TempRepos\**" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="LibGit2Sharp" Version="0.31.0" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.22" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.0.0" />

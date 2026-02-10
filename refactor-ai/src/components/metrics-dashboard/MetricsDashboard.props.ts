@@ -1,8 +1,8 @@
-import type { MetricsComparison } from "../../types/api.types";
+import type { RefactorResponse } from "../../types/api.types";
 
 
 export interface MetricsDashboardProps {
-  metrics: MetricsComparison | undefined;
+  response: RefactorResponse | null | undefined;
 }
 
 export interface MetricCardProps {

@@ -1,0 +1,29 @@
+.item {
+  cursor: pointer;
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  color: #334155;
+  font-size: 0.9rem;
+  border-radius: 4px;
+}
+
+.item:hover {
+  background-color: #e2e8f0;
+}
+
+.icon {
+  margin-right: 8px;
+  font-size: 1rem;
+  width: 20px;
+  text-align: center;
+  color: #64748b;
+}
+
+/* Specific colors for types */
+.folderIcon { color: #eab308; } /* Yellow */
+.fileIcon { color: #3b82f6; } /* Blue */
+
+.children {
+  overflow: hidden;
+}

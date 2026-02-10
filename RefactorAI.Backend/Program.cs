@@ -21,6 +21,7 @@ builder.Services.AddControllers();
 builder.Services.AddHttpClient(); // Allows us to make web requests
 builder.Services.AddScoped<IAiGenerationService, AiGenerationService>(); // Registers our new service
 builder.Services.AddScoped<ICodeMetricsService, CodeMetricsService>();
+builder.Services.AddScoped<IRepositoryService, RepositoryService>();
 
 var app = builder.Build();
 

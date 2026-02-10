@@ -21,6 +21,9 @@ export interface RefactorResponse {
   explanation: string;
   changes: CodeChange[];
   metrics?: MetricsComparison;
+  identifiedCodeSmells?: string[];
+  appliedTechniques?: string[];
+  toolDetectedSmells?: string[];
 }
 
 export interface CodeMetrics {
@@ -35,4 +38,15 @@ export interface CodeMetrics {
 export interface MetricsComparison {
   oldMetrics: CodeMetrics;
   newMetrics: CodeMetrics;
+}
+
+export interface FileTreeNode {
+  name: string;
+  fullPath: string;
+  type: 'file' | 'folder';
+  children: FileTreeNode[];
+}
+
+export interface CloneRequest {
+  repositoryUrl: string;
 }

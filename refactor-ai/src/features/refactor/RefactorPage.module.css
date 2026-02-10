@@ -5,12 +5,14 @@
   flex-direction: column;
   padding: 20px;
   background-color: #f8fafc;
-  overflow-y: auto; /* Enables vertical scrolling */
+  overflow-y: auto; /* Enables vertical scrolling for the whole page */
+  padding-bottom: 60px; /* <--- FIX: Added padding so you can always scroll past the bottom */
 }
 
 .header {
   margin-bottom: 20px;
   text-align: center;
+  flex-shrink: 0;
 }
 
 .header h1 {
@@ -22,9 +24,9 @@
 .editorContainer {
   display: flex;
   gap: 20px;
-  height: 600px; /* Tall enough to see code */
-  margin-bottom: 30px; /* Space for the dashboard below */
-  flex-shrink: 0; /* Prevents shrinking when dashboard appears */
+  height: 600px; /* Fixed height so they don't squash when dashboard appears */
+  margin-bottom: 40px; /* Space for the dashboard below */
+  flex-shrink: 0; /* Prevents shrinking */
 }
 
 .pane {
@@ -49,7 +51,8 @@
 /* Animation for when the dashboard appears */
 .dashboardSection {
   animation: fadeIn 0.5s ease-in;
-  padding-bottom: 40px; /* Extra space at bottom of page */
+  padding-bottom: 40px; /* Extra space at bottom of dashboard */
+  flex-shrink: 0;
 }
 
 .dashboardTitle {

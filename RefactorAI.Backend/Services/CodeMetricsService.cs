@@ -36,6 +36,49 @@ public class CodeMetricsService : ICodeMetricsService
         };
     }
 
+    public List<string> DetectCodeSmells(string code)
+    {
+        var smells = new List<string>();
+        if (string.IsNullOrWhiteSpace(code)) return smells;
+
+        var tree = CSharpSyntaxTree.ParseText(code);
+        var root = tree.GetRoot();
+        var walker = new DetailedMetricsWalker();
+        walker.Visit(root);
+
+        // 1. Long Method (Arbitrary threshold: > 30 lines)
+        var methods = root.DescendantNodes().OfType<MethodDeclarationSyntax>();
+        if (methods.Any(m => m.ToString().Split('\n').Length > 30))
+        {
+            smells.Add("Long Method (LOC > 30)");
+        }
+
+        // 2. Long Parameter List
+        if (walker.MaxParameters > 4)
+        {
+            smells.Add($"Long Parameter List (Max Params: {walker.MaxParameters})");
+        }
+
+        // 3. Deeply Nested Control Flow (Arrow Anti-Pattern)
+        if (walker.MaxNesting > 3)
+        {
+            smells.Add($"Deeply Nested Control Flow (Depth: {walker.MaxNesting})");
+        }
+
+        // 4. High Cyclomatic Complexity
+        if (walker.Complexity > 10)
+        {
+            smells.Add($"High Cyclomatic Complexity ({walker.Complexity})");
+        }
+        
+        // 5. Large Class (Arbitrary threshold: > 10 methods)
+        if(walker.MethodCount > 10)
+        {
+             smells.Add($"Large Class (Methods > 10)");
+        }
+
+        return smells;
+    }
     class DetailedMetricsWalker : CSharpSyntaxWalker
     {
         public int Complexity { get; private set; } = 1;

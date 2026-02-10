@@ -139,7 +139,7 @@ export const RefactorPage: React.FC = () => {
       {responseData?.metrics && (
         <div className={styles.dashboardSection}>
             <h2 className={styles.dashboardTitle}>Metrics Analysis</h2>
-            <MetricsDashboard metrics={responseData.metrics} />
+            <MetricsDashboard response={responseData} />
         </div>
       )}
 
