@@ -9,9 +9,12 @@ public class RepositoryService : IRepositoryService
     
     private static string _currentRepoPath = string.Empty;
 
-    public RepositoryService(IWebHostEnvironment env)
+    private readonly ICodeMetricsService _metricsService;
+
+    public RepositoryService(IWebHostEnvironment env, ICodeMetricsService metricsService)
     {
         _baseClonePath = Path.Combine(Path.GetTempPath(), "RefactorAI_Repos");
+        _metricsService = metricsService;
     }
 
     public async Task<FileTreeNode> CloneAndScanAsync(string repoUrl)
@@ -94,15 +97,43 @@ public class RepositoryService : IRepositoryService
         // 2. Scan Files (Strictly .cs only)
         foreach (var file in info.GetFiles("*.cs"))
         {
-            // Optional: Skip auto-generated files
-            if (file.Name.EndsWith(".g.cs") || file.Name.EndsWith(".AssemblyAttributes.cs")) continue;
+            if (file.Name.EndsWith(".g.cs") || 
+                file.Name.EndsWith(".designer.cs") || // <--- Added this line
+                file.Name.EndsWith(".Designer.cs") || // <--- Added uppercase D just in case
+                file.Name.EndsWith(".AssemblyAttributes.cs")) 
+            {
+                continue;
+            }
 
-            nodes.Add(new FileTreeNode
+            var fileNode = new FileTreeNode
             {
                 Name = file.Name,
                 Type = "file",
                 FullPath = Path.GetRelativePath(rootPath, file.FullName)
-            });
+            };
+
+            // Read the file and calculate metrics
+            try
+            {
+                var code = File.ReadAllText(file.FullName);
+                var metrics = _metricsService.CalculateMetrics(code);
+
+                fileNode.CyclomaticComplexity = metrics.CyclomaticComplexity;
+                fileNode.LinesOfCode = metrics.LinesOfCode;
+                fileNode.MaxNestingDepth = metrics.MaxNestingDepth;
+
+                // Calculate Risk Score:
+                // High complexity, deep nesting, and long files increase the risk.
+                fileNode.RiskScore = metrics.CyclomaticComplexity + 
+                                     (metrics.MaxNestingDepth * 2) + 
+                                     (metrics.LinesOfCode * 0.1);
+            }
+            catch (Exception)
+            {
+                // If we can't read a file for some reason, just leave metrics at 0
+            }
+
+            nodes.Add(fileNode);
         }
 
         return nodes;

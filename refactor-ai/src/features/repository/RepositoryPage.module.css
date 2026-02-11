@@ -301,3 +301,10 @@
     color: #ef4444;
     font-weight: bold;
 }
+
+.select {
+    padding: 0.5rem;
+    border-radius: 4px;
+    border: 1px solid #d1d5db;
+    font-size: 1rem;
+}

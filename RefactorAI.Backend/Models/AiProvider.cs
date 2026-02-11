@@ -4,5 +4,6 @@ public enum AiProvider
 {
     OpenAi,
     Gemini,
-    HuggingFace
+    HuggingFace,
+    Groq,
 }

@@ -2,6 +2,7 @@ export enum AiProvider {
   OpenAi = 0,
   Gemini = 1,
   HuggingFace = 2,
+  Groq = 3,
 }
 
 export interface CodeChange {

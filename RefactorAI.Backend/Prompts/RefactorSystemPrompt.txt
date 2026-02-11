@@ -9,18 +9,24 @@ Requirements:
    - Reduce Nesting Depth: If nesting > 3, refactor immediately.
    - Reduce Parameter Count: If a method has > 4 parameters, consider introducing a parameter object.
    - Improve Maintainability: Aim to lower the line count by removing redundancy.
-4. **Precision (CRITICAL FOR UI TOOLTIPS):**
+4. **No Comments (CRITICAL):**
+   - DO NOT add any inline comments (e.g., `// Extracted method`, `// Guard clause`) to the refactored code.
+   - All explanations must go into the `changes` array so they can be rendered as UI tooltips. Inline comments are strictly redundant and forbidden.
+5. **Precision (CRITICAL FOR UI TOOLTIPS):**
    - The 'lineNumber' in the 'changes' array MUST correspond EXACTLY to a line of CODE in the REFACTORED string.
    - NEVER point to an empty line, a whitespace line, or a line containing only a curly brace `{` or `}`.
    - Point to the specific keyword, method signature, or variable declaration where the change begins.
-   - DO NOT repeat tooltips. If a method was extracted, put ONE tooltip on the new method signature. Do not add tooltips inside the new method body just to explain the extraction again.
+   - DO NOT repeat tooltips. If a method was extracted, put ONE tooltip on the new method signature.
+6. **JSON Formatting (CRITICAL):**
+   - Ensure the output is strictly valid JSON.
+   - The `refactoredCode` value MUST be a single, correctly escaped string (use `\n` for newlines and `\"` for quotes). Do not use literal unescaped newlines.
 
 Return the response strictly in this JSON format:
 {
-  "refactoredCode": "FULL_CODE_STRING",
+  "refactoredCode": "public class Example {\n    public void DoWork() {\n        return;\n    }\n}",
   "changes": [
     {
-      "lineNumber": 10,
+      "lineNumber": 2,
       "description": "Replaced nested if-statements with Guard Clause to reduce nesting depth.",
       "principle": "Guard Clause"
     }

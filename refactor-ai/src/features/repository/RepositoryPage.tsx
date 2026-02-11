@@ -21,6 +21,7 @@ export const RepositoryPage: React.FC = () => {
 
   const [isRefactoring, setIsRefactoring] = useState(false);
   const [refactorData, setRefactorData] = useState<RefactorResponse | null>(null);
+  const [selectedProvider, setSelectedProvider] = useState<AiProvider>(AiProvider.Gemini);
 
   // --- Refs ---
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
@@ -132,7 +133,7 @@ export const RepositoryPage: React.FC = () => {
       const response = await refactorCode({
         code: originalCode,
         language: 'csharp',
-        provider: AiProvider.Gemini 
+        provider: selectedProvider 
       });
       setRefactorData(response);
     } catch (error) {
@@ -153,6 +154,16 @@ export const RepositoryPage: React.FC = () => {
           value={url}
           onChange={(e) => setUrl(e.target.value)}
         />
+        <select 
+            value={selectedProvider}
+            onChange={(e) => setSelectedProvider(Number(e.target.value))}
+            className={styles.select}
+        >
+            <option value={AiProvider.OpenAi}>ChatGPT (OpenAI)</option>
+            <option value={AiProvider.Groq}>Groq (Nvdia)</option>
+            <option value={AiProvider.Gemini}>Gemini (Google)</option>
+            <option value={AiProvider.HuggingFace}>Qwen (Hugging Face)</option>
+        </select>
         <button className={styles.button} onClick={handleClone} disabled={isCloning}>
           {isCloning ? 'Cloning...' : 'Analyze Repo'}
         </button>

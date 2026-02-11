@@ -19,6 +19,7 @@ export const Controls: React.FC<ControlsProps> = ({
         onChange={(e) => onProviderChange(Number(e.target.value))}
       >
         <option value={AiProvider.OpenAi}>ChatGPT (OpenAI)</option>
+        <option value={AiProvider.Groq}>Groq (Nvdia)</option>
         <option value={AiProvider.Gemini}>Gemini (Google)</option>
         <option value={AiProvider.HuggingFace}>Qwen (Hugging Face)</option>
       </select>

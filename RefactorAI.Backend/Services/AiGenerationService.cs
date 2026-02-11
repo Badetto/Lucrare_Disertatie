@@ -33,6 +33,7 @@ public class AiGenerationService : IAiGenerationService
             AiProvider.OpenAi => await CallOpenAiAsync(request, finalPrompt),
             AiProvider.Gemini => await CallGeminiAsync(request, finalPrompt),
             AiProvider.HuggingFace => await CallHuggingFaceAsync(request, finalPrompt),
+            AiProvider.Groq => await CallGroqAsync(request, finalPrompt),
             _ => throw new ArgumentException("Invalid AI Provider")
         };
 
@@ -163,6 +164,43 @@ public class AiGenerationService : IAiGenerationService
             throw new HttpRequestException($"HuggingFace Error: {response.StatusCode} - {error}");
         }
 
+        var apiResponse = await response.Content.ReadFromJsonAsync<OpenAiResponse>();
+        return apiResponse?.Choices.FirstOrDefault()?.Message.Content ?? "";
+    }
+
+    // --- 4. Groq (Llama 3) ---
+    private async Task<string> CallGroqAsync(RefactorRequest request, string prompt)
+    {
+        var apiKey = _configuration["AiSettings:GroqKey"];
+        var model = _configuration["AiSettings:GroqModel"]; 
+        var url = _configuration["AiSettings:GroqUrl"];
+
+        var client = _httpClientFactory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+
+        // We use an anonymous object here to easily add "response_format"
+        // which forces Llama 3 to output valid JSON.
+        var requestBody = new
+        {
+            model = model,
+            messages = new[]
+            {
+                new { role = "system", content = "You are a helpful coding assistant. You must output JSON." },
+                new { role = "user", content = prompt }
+            },
+            response_format = new { type = "json_object" }, // <--- CRITICAL for Llama 3 reliability
+            temperature = 0.2
+        };
+
+        var response = await client.PostAsJsonAsync(url, requestBody);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var error = await response.Content.ReadAsStringAsync();
+            throw new HttpRequestException($"Groq Error: {response.StatusCode} - {error}");
+        }
+
+        // We can reuse the OpenAiResponse class because the structure is identical
         var apiResponse = await response.Content.ReadFromJsonAsync<OpenAiResponse>();
         return apiResponse?.Choices.FirstOrDefault()?.Message.Content ?? "";
     }
