@@ -9,7 +9,9 @@ export const Controls: React.FC<ControlsProps> = ({
   onProviderChange,
   onLanguageChange,
   onRefactorClick,
-  isLoading
+  isLoading,
+  onBenchmarkClick,
+  isBenchmarking
 }) => {
   return (
     <div className={styles.container}>
@@ -18,7 +20,7 @@ export const Controls: React.FC<ControlsProps> = ({
         value={selectedProvider} 
         onChange={(e) => onProviderChange(Number(e.target.value))}
       >
-        <option value={AiProvider.OpenAi}>ChatGPT (OpenAI)</option>
+        {/* <option value={AiProvider.OpenAi}>ChatGPT (OpenAI)</option> */}
         <option value={AiProvider.Groq}>Groq (Nvdia)</option>
         <option value={AiProvider.Gemini}>Gemini (Google)</option>
         <option value={AiProvider.HuggingFace}>Qwen (Hugging Face)</option>
@@ -43,6 +45,17 @@ export const Controls: React.FC<ControlsProps> = ({
       >
         {isLoading ? 'Refactoring...' : 'Refactor Code'}
       </button>
+
+      {onBenchmarkClick && (
+          <button 
+            className={styles.button} 
+            onClick={onBenchmarkClick} 
+            disabled={isLoading || isBenchmarking}
+            style={{ backgroundColor: '#8b5cf6' }} 
+          >
+            {isBenchmarking ? 'Running Race...' : '🧪 Run Experiment'}
+          </button>
+        )}
     </div>
   );
 };

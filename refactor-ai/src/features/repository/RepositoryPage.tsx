@@ -2,12 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import Editor, { type OnMount } from '@monaco-editor/react';
 import * as monaco from 'monaco-editor'; // <--- Import Monaco
 import { cloneRepository, getFileContent } from '../../services/repositoryService';
-import { refactorCode } from '../../services/refactorService';
+import { refactorCode, runBenchmark } from '../../services/refactorService';
 import styles from './RepositoryPage.module.css';
-import { AiProvider, type CodeChange, type FileTreeNode, type RefactorResponse } from '../../types/api.types';
+import { AiProvider, type BenchmarkResult, type CodeChange, type FileTreeNode, type RefactorResponse } from '../../types/api.types';
 import { FileTree } from '../../components/FileTree/FileTree';
 import { Spinner } from '../../components/spinner/Spinner';
 import { MetricsDashboard } from '../../components/metrics-dashboard/MetricsDashboard';
+import { BenchmarkDashboard } from '../../components/BenchmarkDashboard/BenchmarkDashboard';
 
 export const RepositoryPage: React.FC = () => {
   const [url, setUrl] = useState('');
@@ -22,6 +23,9 @@ export const RepositoryPage: React.FC = () => {
   const [isRefactoring, setIsRefactoring] = useState(false);
   const [refactorData, setRefactorData] = useState<RefactorResponse | null>(null);
   const [selectedProvider, setSelectedProvider] = useState<AiProvider>(AiProvider.Gemini);
+
+  const [isBenchmarking, setIsBenchmarking] = useState(false);
+  const [benchmarkData, setBenchmarkData] = useState<BenchmarkResult | null>(null);
 
   // --- Refs ---
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
@@ -105,6 +109,27 @@ export const RepositoryPage: React.FC = () => {
       alert("Failed to clone.");
     } finally {
       setIsCloning(false);
+    }
+  };
+
+  const handleRunExperiment = async () => {
+    if (!originalCode || !selectedFile) return;
+
+    setIsBenchmarking(true);
+    setRefactorData(null); // Clear single mode
+    setBenchmarkData(null); // Clear previous benchmark
+
+    try {
+        const result = await runBenchmark({
+            code: originalCode,
+            language: 'csharp',
+            providers: [AiProvider.Gemini, AiProvider.Groq, AiProvider.HuggingFace] 
+        });
+        setBenchmarkData(result);
+    } catch (error) {
+        alert("Benchmark failed.");
+    } finally {
+        setIsBenchmarking(false);
     }
   };
 
@@ -233,13 +258,23 @@ export const RepositoryPage: React.FC = () => {
               <>
                   <div className={styles.fileHeader}>
                       <span className={styles.fileName}>{selectedFile.name}</span>
-                      <button 
-                        className={styles.refactorBtn} 
-                        onClick={handleRefactorCurrentFile}
-                        disabled={isRefactoring || isFetchingFile}
-                      >
-                        {isRefactoring ? 'Optimizing...' : '⚡ Refactor This File'}
-                      </button>
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <button 
+                          className={styles.refactorBtn} 
+                          onClick={handleRefactorCurrentFile}
+                          disabled={isRefactoring || isFetchingFile}
+                        >
+                          {isRefactoring ? 'Optimizing...' : '⚡ Refactor This File'}
+                        </button>
+                        <button 
+                          className={styles.refactorBtn} 
+                          style={{ backgroundColor: '#8b5cf6' }} 
+                          onClick={handleRunExperiment}
+                          disabled={isRefactoring || isBenchmarking}
+                        >
+                          {isBenchmarking ? 'Running Race...' : '🧪 Run Experiment'}
+                        </button>
+                      </div>
                   </div>
 
                   {refactorData ? (
@@ -274,16 +309,25 @@ export const RepositoryPage: React.FC = () => {
                         </div>
                       </>
                   ) : (
-                      <div className={styles.singleEditorContainer}>
-                          {isFetchingFile && (
-                              <div className={styles.loadingOverlay}><Spinner /></div>
-                          )}
-                          <Editor 
-                              height="100%" defaultLanguage="csharp" 
-                              value={originalCode} 
-                              options={{ readOnly: true, minimap: { enabled: false } }}
-                          />
-                      </div>
+                      <>
+                        <div className={styles.singleEditorContainer}>
+                            {isFetchingFile && (
+                                <div className={styles.loadingOverlay}><Spinner /></div>
+                            )}
+                            <Editor 
+                                height="100%" defaultLanguage="csharp" 
+                                value={originalCode} 
+                                options={{ readOnly: true, minimap: { enabled: false } }}
+                            />
+                        </div>
+
+                        {/* FIXED LOCATION: Benchmark Dashboard placed here! */}
+                        {(benchmarkData || isBenchmarking) && (
+                            <div style={{ padding: '0 20px 40px 20px', flexShrink: 0 }}>
+                                <BenchmarkDashboard result={benchmarkData} isLoading={isBenchmarking} />
+                            </div>
+                        )}
+                      </>
                   )}
               </>
             )}

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using RefactorAI.Backend.Models;
+using RefactorAI.Backend.Models.DTOs;
 using RefactorAI.Backend.Services;
 
 namespace RefactorAI.Backend.Controllers;
@@ -57,5 +58,70 @@ public class RefactorController : ControllerBase
         {
             return StatusCode(500, new { error = ex.Message });
         }
+    }
+
+    [HttpPost("benchmark")]
+    public async Task<IActionResult> RunBenchmark([FromBody] BenchmarkRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Code)) return BadRequest("Code is required");
+
+        // 1. Define allowed providers (Force exclude OpenAI if you haven't paid)
+        var allowedProviders = new List<AiProvider> { AiProvider.Gemini, AiProvider.Groq, AiProvider.HuggingFace };
+        
+        // Use user selection OR default to both if empty, but filter by allowed list
+        var providersToRun = (request.Providers != null && request.Providers.Any())
+            ? request.Providers.Where(p => allowedProviders.Contains(p)).ToList()
+            : allowedProviders;
+
+        // 2. Calculate Baseline Metrics
+        var originalMetrics = _metricsService.CalculateMetrics(request.Code);
+
+        // 3. Create Parallel Tasks
+        var tasks = providersToRun.Select(async provider => 
+        {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            var result = new ProviderResult { ProviderName = provider.ToString() };
+
+            try
+            {
+                // Create a request specifically for THIS provider
+                var refactorReq = new RefactorRequest 
+                { 
+                    Code = request.Code, 
+                    Language = request.Language, 
+                    Provider = provider 
+                };
+
+                // DIRECT CALL: The service handles the switch internally
+                var response = await _aiService.RefactorCodeAsync(refactorReq);
+
+                sw.Stop();
+                result.DurationSeconds = sw.Elapsed.TotalSeconds;
+                result.RefactoredCode = response.RefactoredCode;
+                result.IsSuccess = true;
+                result.Metrics = _metricsService.CalculateMetrics(response.RefactoredCode);
+                result.Explanation = response.Explanation ?? "";
+                result.IdentifiedCodeSmells = response.IdentifiedCodeSmells ?? new List<string>();
+                result.AppliedTechniques = response.AppliedTechniques ?? new List<string>();
+            }
+            catch (Exception ex)
+            {
+                sw.Stop();
+                result.DurationSeconds = sw.Elapsed.TotalSeconds;
+                result.IsSuccess = false;
+                result.ErrorMessage = ex.Message;
+            }
+
+            return result;
+        });
+
+        // 4. Run the Race!
+        var providerResults = await Task.WhenAll(tasks);
+
+        return Ok(new BenchmarkResult
+        {
+            OriginalMetrics = originalMetrics,
+            Results = providerResults.ToList()
+        });
     }
 }

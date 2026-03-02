@@ -7,4 +7,6 @@ export interface ControlsProps {
   onLanguageChange: (language: string) => void;
   onRefactorClick: () => void;
   isLoading: boolean;
+  onBenchmarkClick?: () => void;
+  isBenchmarking?: boolean
 }

@@ -1,19 +1,22 @@
 import React, { useState, useRef } from 'react';
 import Editor, { type OnMount } from '@monaco-editor/react';
 import * as monaco from 'monaco-editor'; 
-import { refactorCode } from '../../services/refactorService';
+import { refactorCode, runBenchmark } from '../../services/refactorService';
 
 import styles from './RefactorPage.module.css';
-import { AiProvider, type CodeChange, type RefactorResponse } from '../../types/api.types';
+import { AiProvider, type BenchmarkResult, type CodeChange, type RefactorResponse } from '../../types/api.types';
 import { Controls } from './components/Controls/Component';
 import { MetricsDashboard } from '../../components/metrics-dashboard/MetricsDashboard';
 import { Spinner } from '../../components/spinner/Spinner';
+import { BenchmarkDashboard } from '../../components/BenchmarkDashboard/BenchmarkDashboard';
 
 export const RefactorPage: React.FC = () => {
   const [code, setCode] = useState<string>('// Paste your C# code here...');
   const [provider, setProvider] = useState<AiProvider>(AiProvider.Gemini);
   const [language, setLanguage] = useState<string>('csharp');
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isBenchmarking, setIsBenchmarking] = useState(false);
+  const [benchmarkData, setBenchmarkData] = useState<BenchmarkResult | null>(null);
   
   // Stores the full response (Refactored Code + Metrics)
   const [responseData, setResponseData] = useState<RefactorResponse | null>(null);
@@ -79,6 +82,28 @@ export const RefactorPage: React.FC = () => {
     }
   };
 
+  const handleRunExperiment = async () => {
+    if (!code) return;
+
+    setIsBenchmarking(true);
+    setResponseData(null); // Clear single mode results
+    setBenchmarkData(null); // Clear previous benchmark results
+
+    try {
+      const result = await runBenchmark({
+        code: code,
+        language: 'csharp',
+        providers: [AiProvider.Gemini, AiProvider.Groq, AiProvider.HuggingFace] 
+      });
+      setBenchmarkData(result);
+    } catch (error) {
+      alert("Benchmark failed. Check console for details.");
+      console.error(error);
+    } finally {
+      setIsBenchmarking(false);
+    }
+  };
+  
   // --- RENDER ---
   return (
     <div className={styles.pageContainer}>
@@ -93,6 +118,8 @@ export const RefactorPage: React.FC = () => {
         onLanguageChange={setLanguage}
         onRefactorClick={handleRefactor}
         isLoading={isLoading}
+        onBenchmarkClick={handleRunExperiment}
+        isBenchmarking={isBenchmarking}
       />
 
       {/* Editor Section */}
@@ -140,6 +167,11 @@ export const RefactorPage: React.FC = () => {
         <div className={styles.dashboardSection}>
             <h2 className={styles.dashboardTitle}>Metrics Analysis</h2>
             <MetricsDashboard response={responseData} />
+        </div>
+      )}
+      {(benchmarkData || isBenchmarking) && (
+        <div className={styles.dashboardSection} style={{ marginTop: '20px' }}>
+            <BenchmarkDashboard result={benchmarkData} isLoading={isBenchmarking} />
         </div>
       )}
 

@@ -56,3 +56,26 @@ export interface FileTreeNode {
 export interface CloneRequest {
   repositoryUrl: string;
 }
+
+export interface BenchmarkRequest {
+  code: string;
+  language: string;
+  providers: AiProvider[];
+}
+
+export interface ProviderResult {
+  providerName: string;
+  durationSeconds: number;
+  metrics: CodeMetrics;
+  refactoredCode: string;
+  isSuccess: boolean;
+  errorMessage: string;
+  explanation?: string;
+  identifiedCodeSmells?: string[];
+  appliedTechniques?: string[];
+}
+
+export interface BenchmarkResult {
+  originalMetrics: CodeMetrics;
+  results: ProviderResult[];
+}
