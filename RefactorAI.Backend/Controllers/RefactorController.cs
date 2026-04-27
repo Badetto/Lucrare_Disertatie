@@ -129,14 +129,25 @@ public class RefactorController : ControllerBase
             {
                 OriginalComplexity = originalMetrics.CyclomaticComplexity,
                 OriginalLinesOfCode = originalMetrics.LinesOfCode,
+                OriginalMaintainabilityIndex = originalMetrics.MaintainabilityIndex, // <-- NEW
+                
                 Results = providerResults.Select(pr => new Models.Entities.AiRunResult
                 {
                     ProviderName = pr.ProviderName,
                     DurationSeconds = pr.DurationSeconds,
                     IsSuccess = pr.IsSuccess,
                     ErrorMessage = pr.ErrorMessage,
+                    
+                    // Metrics
                     NewComplexity = pr.Metrics?.CyclomaticComplexity ?? 0,
-                    NewLinesOfCode = pr.Metrics?.LinesOfCode ?? 0
+                    NewLinesOfCode = pr.Metrics?.LinesOfCode ?? 0,
+                    NewMaintainabilityIndex = pr.Metrics?.MaintainabilityIndex ?? 0, // <-- NEW
+                    
+                    // Qualitative
+                    Explanation = pr.Explanation ?? "", // <-- NEW
+                    IdentifiedCodeSmells = pr.IdentifiedCodeSmells ?? new List<string>(), // <-- NEW
+                    AppliedTechniques = pr.AppliedTechniques ?? new List<string>() // <-- NEW
+                    
                 }).ToList()
             };
 
@@ -145,7 +156,6 @@ public class RefactorController : ControllerBase
         }
         catch (Exception ex)
         {
-            // Log it, but don't fail the API request just because saving failed
             Console.WriteLine($"Failed to save to DB: {ex.Message}");
         }
 

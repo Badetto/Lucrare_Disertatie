@@ -8,7 +8,7 @@ public class BenchmarkRun
     // Original Code Stats
     public int OriginalComplexity { get; set; }
     public int OriginalLinesOfCode { get; set; }
-    
+    public double OriginalMaintainabilityIndex { get; set; } // <-- NEW
     // Navigation Property: One Run has Many AI Results
     public List<AiRunResult> Results { get; set; } = new();
 }

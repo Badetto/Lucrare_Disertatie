@@ -13,4 +13,10 @@ public class AiRunResult
     // AI's Output Stats
     public int NewComplexity { get; set; }
     public int NewLinesOfCode { get; set; }
+    public double NewMaintainabilityIndex { get; set; } // <-- NEW
+    
+    // --- Qualitative Data (Saved as JSON in SQLite by EF8) ---
+    public string Explanation { get; set; } = string.Empty; // <-- NEW
+    public List<string> IdentifiedCodeSmells { get; set; } = new(); // <-- NEW
+    public List<string> AppliedTechniques { get; set; } = new(); // <-- NEW
 }

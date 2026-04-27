@@ -91,6 +91,10 @@ export interface AiRunResultDb {
     errorMessage: string;
     newComplexity: number;
     newLinesOfCode: number;
+    newMaintainabilityIndex: number; // <-- NEW
+    explanation: string;             // <-- NEW
+    identifiedCodeSmells: string[];  // <-- NEW
+    appliedTechniques: string[];     // <-- NEW
 }
 
 export interface BenchmarkRunDb {
@@ -98,5 +102,6 @@ export interface BenchmarkRunDb {
     createdAt: string;
     originalComplexity: number;
     originalLinesOfCode: number;
+    originalMaintainabilityIndex: number; // <-- NEW
     results: AiRunResultDb[];
 }

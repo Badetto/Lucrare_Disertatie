@@ -1,24 +1,23 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
-    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
-    PieChart, Pie, Cell 
-} from 'recharts';
 import styles from './StatisticsPage.module.css';
 import { getBenchmarkHistory } from '../../services/refactorService';
 import type { StatisticsPageProps } from './StatisticsPage.props';
 import type { BenchmarkRunDb } from '../../types/api.types';
+import { CoreMetricsTab } from './components/CoreMetricsTab/CoreMetricsTab';
+import { QualitativeTab } from './components/QualitativeTab/QualitativeTab';
+import { EnterpriseTab } from './components/EnterpriseTab/EnterpriseTab';
 
-// Distinct colors for the AI providers
-const PROVIDER_COLORS: Record<string, string> = {
-    Gemini: '#10b981',      // Green
-    Groq: '#f59e0b',        // Yellow/Orange
-    HuggingFace: '#8b5cf6', // Purple
-    OpenAi: '#3b82f6'       // Blue
-};
+// We will build these in Step 3!
+// import { CoreMetricsTab } from './components/CoreMetricsTab/CoreMetricsTab';
+// import { QualitativeTab } from './components/QualitativeTab/QualitativeTab';
+// import { EnterpriseTab } from './components/EnterpriseTab/EnterpriseTab';
 
 export const StatisticsPage: React.FC<StatisticsPageProps> = ({ title = "Dissertation Analytics" }) => {
     const [history, setHistory] = useState<BenchmarkRunDb[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    
+    // Manage which tab is currently visible
+    const [activeTab, setActiveTab] = useState<'core' | 'qualitative' | 'enterprise'>('core');
 
     useEffect(() => {
         const fetchData = async () => {
@@ -26,7 +25,7 @@ export const StatisticsPage: React.FC<StatisticsPageProps> = ({ title = "Dissert
                 const data = await getBenchmarkHistory();
                 setHistory(data);
             } catch (error) {
-                console.error("Failed to load statistics");
+                console.error("Failed to load statistics", error);
             } finally {
                 setIsLoading(false);
             }
@@ -34,63 +33,51 @@ export const StatisticsPage: React.FC<StatisticsPageProps> = ({ title = "Dissert
         fetchData();
     }, []);
 
-    // --- DATA AGGREGATION ENGINE ---
-    // We memoize this so it only recalculates when 'history' changes
-    const aggregatedData = useMemo(() => {
+    // Calculate High-Level Summaries for the top cards
+    const summary = useMemo(() => {
         if (!history || history.length === 0) return null;
 
-        const stats: Record<string, { totalRuns: number, successRuns: number, totalTime: number, totalComplexityReduction: number }> = {};
-        
-        let totalExperiments = history.length;
+        let totalRuns = 0;
+        let successfulRuns = 0;
+        let bestProviderCount: Record<string, number> = {};
 
         history.forEach(run => {
-            run.results.forEach(result => {
-                if (!stats[result.providerName]) {
-                    stats[result.providerName] = { totalRuns: 0, successRuns: 0, totalTime: 0, totalComplexityReduction: 0 };
-                }
+            // Find who won this specific run (biggest complexity drop)
+            let maxDrop = -1;
+            let winner = "None";
 
-                stats[result.providerName].totalRuns += 1;
+            run.results.forEach(res => {
+                totalRuns++;
+                if (res.isSuccess) successfulRuns++;
 
-                // Only calculate averages for SUCCESSFUL runs
-                if (result.isSuccess) {
-                    stats[result.providerName].successRuns += 1;
-                    stats[result.providerName].totalTime += result.durationSeconds;
-                    
-                    // Reduction = Original - New (Higher is better)
-                    const reduction = run.originalComplexity - result.newComplexity;
-                    stats[result.providerName].totalComplexityReduction += reduction;
+                const drop = run.originalComplexity - res.newComplexity;
+                if (res.isSuccess && drop > maxDrop) {
+                    maxDrop = drop;
+                    winner = res.providerName;
                 }
             });
+
+            if (winner !== "None") {
+                bestProviderCount[winner] = (bestProviderCount[winner] || 0) + 1;
+            }
         });
 
-        // Format data for Recharts
-        const chartData = Object.keys(stats).map(provider => {
-            const s = stats[provider];
-            return {
-                provider,
-                avgTime: s.successRuns > 0 ? Number((s.totalTime / s.successRuns).toFixed(2)) : 0,
-                avgReduction: s.successRuns > 0 ? Number((s.totalComplexityReduction / s.successRuns).toFixed(2)) : 0,
-                successRate: s.totalRuns > 0 ? Number(((s.successRuns / s.totalRuns) * 100).toFixed(0)) : 0,
-                totalRuns: s.totalRuns
-            };
-        });
+        // Determine Overall Champion based on who won the most races
+        const champion = Object.keys(bestProviderCount).reduce((a, b) => bestProviderCount[a] > bestProviderCount[b] ? a : b, "N/A");
 
-        return { totalExperiments, chartData };
+        return { totalExperiments: history.length, totalRuns, successfulRuns, champion };
     }, [history]);
-
-
-    // --- RENDERERS ---
 
     if (isLoading) {
         return <div className={styles.loadingState}><h2>Loading thesis data... 🧪</h2></div>;
     }
 
-    if (!aggregatedData || aggregatedData.totalExperiments === 0) {
+    if (!summary || history.length === 0) {
         return (
             <div className={styles.emptyState}>
                 <span>📊</span>
                 <h2>No Data Available</h2>
-                <p>Run some benchmarks on the Repository or Snippet page first!</p>
+                <p>Run some benchmarks on the Snippet or Repository page to generate data!</p>
             </div>
         );
     }
@@ -99,86 +86,64 @@ export const StatisticsPage: React.FC<StatisticsPageProps> = ({ title = "Dissert
         <div className={styles.pageContainer}>
             <div className={styles.header}>
                 <h1>{title}</h1>
-                <p>Aggregated benchmark results from {aggregatedData.totalExperiments} experiments.</p>
+                <p>Aggregated results from {summary.totalExperiments} code benchmarks.</p>
             </div>
 
-            {/* 1. High-Level Summary Cards */}
+            {/* HIGH-LEVEL SUMMARY CARDS */}
             <div className={styles.summaryGrid}>
                 <div className={styles.summaryCard}>
-                    <span className={styles.cardTitle}>Total Experiments Run</span>
-                    <span className={styles.cardValue}>{aggregatedData.totalExperiments}</span>
+                    <span className={styles.cardTitle}>Total AI Executions</span>
+                    <span className={styles.cardValue}>{summary.totalRuns}</span>
                 </div>
                 <div className={styles.summaryCard}>
-                    <span className={styles.cardTitle}>Fastest AI (Avg)</span>
-                    <span className={styles.cardValue} style={{ color: '#10b981' }}>
-                        {aggregatedData.chartData.reduce((prev, curr) => (prev.avgTime < curr.avgTime && prev.avgTime > 0) ? prev : curr).provider}
+                    <span className={styles.cardTitle}>Overall Success Rate</span>
+                    <span className={styles.cardValue}>
+                        {Math.round((summary.successfulRuns / summary.totalRuns) * 100)}%
                     </span>
                 </div>
                 <div className={styles.summaryCard}>
-                    <span className={styles.cardTitle}>Best Refactorer (Avg Complexity Drop)</span>
+                    <span className={styles.cardTitle}>Champion (Most Wins)</span>
                     <span className={styles.cardValue} style={{ color: '#8b5cf6' }}>
-                         {aggregatedData.chartData.reduce((prev, curr) => prev.avgReduction > curr.avgReduction ? prev : curr).provider}
+                        🏆 {summary.champion}
                     </span>
                 </div>
             </div>
 
-            {/* 2. Charts Grid */}
-            <div className={styles.chartsGrid}>
+            {/* TAB NAVIGATION */}
+            <div className={styles.tabContainer}>
+                <button 
+                    className={`${styles.tabButton} ${activeTab === 'core' ? styles.activeTab : ''}`}
+                    onClick={() => setActiveTab('core')}
+                >
+                    📈 Core Metrics
+                </button>
+                <button 
+                    className={`${styles.tabButton} ${activeTab === 'qualitative' ? styles.activeTab : ''}`}
+                    onClick={() => setActiveTab('qualitative')}
+                >
+                    🧠 Qualitative (Smells & Tech)
+                </button>
+                <button 
+                    className={`${styles.tabButton} ${activeTab === 'enterprise' ? styles.activeTab : ''}`}
+                    onClick={() => setActiveTab('enterprise')}
+                >
+                    🏢 Enterprise Scalability
+                </button>
+            </div>
+
+            {/* TAB CONTENT AREA */}
+            <div className={styles.tabContent}>
+                {activeTab === 'core' && (
+                    <CoreMetricsTab history={history} />
+                )}
                 
-                {/* CHART A: Average Processing Time */}
-                <div className={styles.chartContainer}>
-                    <h3>Average Execution Time (Seconds)</h3>
-                    <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={aggregatedData.chartData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                            <XAxis dataKey="provider" />
-                            <YAxis />
-                            <Tooltip cursor={{fill: '#f1f5f9'}} />
-                            <Bar dataKey="avgTime" name="Avg Time (s)" radius={[4, 4, 0, 0]}>
-                                {aggregatedData.chartData.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={PROVIDER_COLORS[entry.provider] || '#94a3b8'} />
-                                ))}
-                            </Bar>
-                        </BarChart>
-                    </ResponsiveContainer>
-                </div>
-
-                {/* CHART B: Cyclomatic Complexity Reduction */}
-                <div className={styles.chartContainer}>
-                    <h3>Avg Cyclomatic Complexity Reduction</h3>
-                    <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={aggregatedData.chartData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                            <XAxis dataKey="provider" />
-                            <YAxis />
-                            <Tooltip cursor={{fill: '#f1f5f9'}} />
-                            <Bar dataKey="avgReduction" name="Avg Complexity Drop" radius={[4, 4, 0, 0]}>
-                                {aggregatedData.chartData.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={PROVIDER_COLORS[entry.provider] || '#94a3b8'} />
-                                ))}
-                            </Bar>
-                        </BarChart>
-                    </ResponsiveContainer>
-                </div>
-
-                {/* CHART C: Success Rate (Robustness) */}
-                <div className={styles.chartContainer}>
-                    <h3>API Success Rate (%)</h3>
-                    <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={aggregatedData.chartData} layout="vertical" margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
-                            <XAxis type="number" domain={[0, 100]} />
-                            <YAxis dataKey="provider" type="category" />
-                            <Tooltip cursor={{fill: '#f1f5f9'}} />
-                            <Bar dataKey="successRate" name="Success Rate %" radius={[0, 4, 4, 0]}>
-                                {aggregatedData.chartData.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={entry.successRate > 80 ? '#10b981' : (entry.successRate > 50 ? '#f59e0b' : '#ef4444')} />
-                                ))}
-                            </Bar>
-                        </BarChart>
-                    </ResponsiveContainer>
-                </div>
-
+                {activeTab === 'qualitative' && (
+                    <QualitativeTab history={history} />
+                )}
+                
+                {activeTab === 'enterprise' && (
+                    <EnterpriseTab history={history} />
+                )}
             </div>
         </div>
     );

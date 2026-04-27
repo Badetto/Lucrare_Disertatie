@@ -8,9 +8,7 @@
 }
 
 .header {
-    margin-bottom: 30px;
-    border-bottom: 2px solid #e2e8f0;
-    padding-bottom: 15px;
+    margin-bottom: 20px;
 }
 
 .header h1 {
@@ -25,7 +23,7 @@
     font-size: 1.1rem;
 }
 
-/* Summary Cards (Top Row) */
+/* High-Level Summary Cards */
 .summaryGrid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -52,37 +50,45 @@
 }
 
 .cardValue {
-    font-size: 2rem;
+    font-size: 1.8rem;
     font-weight: 700;
     color: #3b82f6;
 }
 
-/* Charts Grid */
-.chartsGrid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+/* Tab Navigation System */
+.tabContainer {
+    display: flex;
+    border-bottom: 2px solid #e2e8f0;
+    margin-bottom: 25px;
     gap: 30px;
 }
 
-.chartContainer {
-    background-color: white;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    border: 1px solid #e2e8f0;
-    height: 350px; /* Fixed height for charts */
-    display: flex;
-    flex-direction: column;
+.tabButton {
+    background: none;
+    border: none;
+    padding: 10px 5px;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
 }
 
-.chartContainer h3 {
-    margin: 0 0 20px 0;
-    font-size: 1.1rem;
-    color: #334155;
-    text-align: center;
+.tabButton:hover {
+    color: #0f172a;
 }
 
-/* States */
+.activeTab {
+    color: #3b82f6;
+    border-bottom: 3px solid #3b82f6;
+}
+
+.tabContent {
+    background-color: transparent;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
 .loadingState, .emptyState {
     display: flex;
     flex-direction: column;
@@ -95,4 +101,9 @@
 .emptyState span {
     font-size: 3rem;
     margin-bottom: 10px;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
 }

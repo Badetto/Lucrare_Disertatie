@@ -1,0 +1,40 @@
+.tabContainer {
+    animation: fadeIn 0.4s ease-in-out;
+}
+
+.chartsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+    gap: 30px;
+    margin-top: 20px;
+}
+
+.chartCard {
+    background-color: white;
+    padding: 25px 20px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    border: 1px solid #e2e8f0;
+    height: 400px;
+    display: flex;
+    flex-direction: column;
+}
+
+.chartCard h3 {
+    margin: 0 0 5px 0;
+    font-size: 1.1rem;
+    color: #0f172a;
+    text-align: center;
+}
+
+.chartSubtitle {
+    text-align: center;
+    font-size: 0.85rem;
+    color: #64748b;
+    margin-bottom: 20px;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
