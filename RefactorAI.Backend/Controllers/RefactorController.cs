@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using RefactorAI.Backend.Data;
 using RefactorAI.Backend.Models;
 using RefactorAI.Backend.Models.DTOs;
 using RefactorAI.Backend.Services;
@@ -11,11 +13,13 @@ public class RefactorController : ControllerBase
 {
     private readonly IAiGenerationService _aiService;
     private readonly ICodeMetricsService _metricsService;
+    private readonly AppDbContext _dbContext;
 
-    public RefactorController(IAiGenerationService aiService, ICodeMetricsService metricsService)
+    public RefactorController(IAiGenerationService aiService, ICodeMetricsService metricsService, AppDbContext dbContext)
     {
         _aiService = aiService;
         _metricsService = metricsService;
+        _dbContext = dbContext;
     }
 
     [HttpPost("refactor")]
@@ -118,10 +122,56 @@ public class RefactorController : ControllerBase
         // 4. Run the Race!
         var providerResults = await Task.WhenAll(tasks);
 
+        // --- NEW: PHASE 4 - SAVE TO SQLITE DATABASE ---
+        try 
+        {
+            var dbRun = new Models.Entities.BenchmarkRun
+            {
+                OriginalComplexity = originalMetrics.CyclomaticComplexity,
+                OriginalLinesOfCode = originalMetrics.LinesOfCode,
+                Results = providerResults.Select(pr => new Models.Entities.AiRunResult
+                {
+                    ProviderName = pr.ProviderName,
+                    DurationSeconds = pr.DurationSeconds,
+                    IsSuccess = pr.IsSuccess,
+                    ErrorMessage = pr.ErrorMessage,
+                    NewComplexity = pr.Metrics?.CyclomaticComplexity ?? 0,
+                    NewLinesOfCode = pr.Metrics?.LinesOfCode ?? 0
+                }).ToList()
+            };
+
+            _dbContext.BenchmarkRuns.Add(dbRun);
+            await _dbContext.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            // Log it, but don't fail the API request just because saving failed
+            Console.WriteLine($"Failed to save to DB: {ex.Message}");
+        }
+
         return Ok(new BenchmarkResult
         {
             OriginalMetrics = originalMetrics,
             Results = providerResults.ToList()
         });
+    }
+
+    [HttpGet("history")]
+    public async Task<IActionResult> GetBenchmarkHistory()
+    {
+        try
+        {
+            // Fetch all runs, include the AI results, and sort by newest first
+            var history = await _dbContext.BenchmarkRuns
+                .Include(b => b.Results)
+                .OrderByDescending(b => b.CreatedAt)
+                .ToListAsync();
+
+            return Ok(history);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = "Failed to fetch benchmark history.", details = ex.Message });
+        }
     }
 }

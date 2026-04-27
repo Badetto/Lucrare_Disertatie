@@ -79,3 +79,24 @@ export interface BenchmarkResult {
   originalMetrics: CodeMetrics;
   results: ProviderResult[];
 }
+
+// --- PHASE 4: Database History Types ---
+
+export interface AiRunResultDb {
+    id: number;
+    benchmarkRunId: number;
+    providerName: string;
+    durationSeconds: number;
+    isSuccess: boolean;
+    errorMessage: string;
+    newComplexity: number;
+    newLinesOfCode: number;
+}
+
+export interface BenchmarkRunDb {
+    id: number;
+    createdAt: string;
+    originalComplexity: number;
+    originalLinesOfCode: number;
+    results: AiRunResultDb[];
+}

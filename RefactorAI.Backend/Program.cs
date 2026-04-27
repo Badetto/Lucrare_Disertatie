@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+using RefactorAI.Backend.Data;
 using RefactorAI.Backend.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,8 +24,16 @@ builder.Services.AddHttpClient(); // Allows us to make web requests
 builder.Services.AddScoped<IAiGenerationService, AiGenerationService>(); // Registers our new service
 builder.Services.AddScoped<ICodeMetricsService, CodeMetricsService>();
 builder.Services.AddScoped<IRepositoryService, RepositoryService>();
-
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+    
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.EnsureCreated(); 
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { BenchmarkRequest, BenchmarkResult, RefactorRequest, RefactorResponse } from '../types/api.types';
+import type { BenchmarkRequest, BenchmarkResult, BenchmarkRunDb, RefactorRequest, RefactorResponse } from '../types/api.types';
 
 // Create an axios instance with base URL (adjust port to your backend)
 const apiClient = axios.create({
@@ -25,6 +25,17 @@ export const runBenchmark = async (request: BenchmarkRequest): Promise<Benchmark
         return response.data;
     } catch (error) {
         console.error('Benchmark failed:', error);
+        throw error;
+    }
+};
+
+export const getBenchmarkHistory = async (): Promise<BenchmarkRunDb[]> => {
+    try {
+        // Using your customized apiClient instance
+        const response = await apiClient.get<BenchmarkRunDb[]>('/Refactor/history');
+        return response.data;
+    } catch (error) {
+        console.error('Failed to fetch benchmark history:', error);
         throw error;
     }
 };
