@@ -11,13 +11,14 @@
 
 .chartCard {
     background-color: white;
-    padding: 25px 20px;
+    padding: 25px 20px 15px 20px;
     border-radius: 8px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     border: 1px solid #e2e8f0;
-    height: 450px; /* Slightly taller for the Radar chart */
+    height: 520px; /* STRICT HEIGHT: Forces both cards to match perfectly */
     display: flex;
     flex-direction: column;
+    overflow: hidden; /* Prevents the whole card from scrolling */
 }
 
 .chartCard h3 {
@@ -32,6 +33,55 @@
     font-size: 0.85rem;
     color: #64748b;
     margin-bottom: 10px;
+}
+
+/* Custom Sticky Legend */
+.customLegend {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    flex-wrap: wrap;
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px dashed #e2e8f0;
+}
+
+.legendItem {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    color: #475569;
+}
+
+.legendColor {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+}
+
+/* Inner Scrollable Area for the Bar Chart */
+.scrollArea {
+    flex: 1; /* Takes up remaining space in the card */
+    overflow-y: auto; /* Enables vertical scrolling inside */
+    overflow-x: hidden;
+    padding-right: 5px; /* Space for the scrollbar */
+}
+
+/* Custom Scrollbar styling for a cleaner look */
+.scrollArea::-webkit-scrollbar {
+    width: 6px;
+}
+.scrollArea::-webkit-scrollbar-track {
+    background: #f1f5f9; 
+    border-radius: 4px;
+}
+.scrollArea::-webkit-scrollbar-thumb {
+    background: #cbd5e1; 
+    border-radius: 4px;
+}
+.scrollArea::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8; 
 }
 
 @keyframes fadeIn {

@@ -308,3 +308,68 @@
     border: 1px solid #d1d5db;
     font-size: 1rem;
 }
+
+/* --- MASS REFACTOR UI --- */
+.hotspotsContainer {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.massRefactorHeader {
+    padding: 15px;
+    background-color: white;
+    border-bottom: 1px solid #e2e8f0;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.massRefactorBtn {
+    width: 100%;
+    padding: 10px;
+    background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(139, 92, 246, 0.3);
+    transition: all 0.2s;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+}
+
+.massRefactorBtn:hover {
+    background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);
+    transform: translateY(-1px);
+}
+
+.massRefactorBtn:disabled {
+    background: #cbd5e1;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.progressContainer {
+    margin-top: 10px;
+    height: 6px;
+    background-color: #e2e8f0;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.progressBar {
+    height: 100%;
+    background-color: #10b981;
+    transition: width 0.3s ease;
+}
+
+.hotspotStatus {
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+}

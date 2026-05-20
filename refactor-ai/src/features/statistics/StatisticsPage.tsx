@@ -7,16 +7,9 @@ import { CoreMetricsTab } from './components/CoreMetricsTab/CoreMetricsTab';
 import { QualitativeTab } from './components/QualitativeTab/QualitativeTab';
 import { EnterpriseTab } from './components/EnterpriseTab/EnterpriseTab';
 
-// We will build these in Step 3!
-// import { CoreMetricsTab } from './components/CoreMetricsTab/CoreMetricsTab';
-// import { QualitativeTab } from './components/QualitativeTab/QualitativeTab';
-// import { EnterpriseTab } from './components/EnterpriseTab/EnterpriseTab';
-
 export const StatisticsPage: React.FC<StatisticsPageProps> = ({ title = "Dissertation Analytics" }) => {
     const [history, setHistory] = useState<BenchmarkRunDb[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    
-    // Manage which tab is currently visible
     const [activeTab, setActiveTab] = useState<'core' | 'qualitative' | 'enterprise'>('core');
 
     useEffect(() => {
@@ -33,7 +26,64 @@ export const StatisticsPage: React.FC<StatisticsPageProps> = ({ title = "Dissert
         fetchData();
     }, []);
 
-    // Calculate High-Level Summaries for the top cards
+    // --- NEW: CSV Data Exporter ---
+    const handleDownloadCsv = () => {
+        if (!history || history.length === 0) return;
+
+        // 1. Define the CSV Column Headers
+        const headers = [
+            "Run ID", "Date", "Provider", "Success", "Duration (s)",
+            "Original LOC", "New LOC", "Original Complexity", "New Complexity",
+            "Original MI", "New MI", "Complexity Drop", "MI Increase",
+            "Error Message", "Applied Techniques", "Identified Smells"
+        ];
+
+        const rows: string[] = [];
+        rows.push(headers.join(","));
+
+        // 2. Flatten the data into rows
+        history.forEach(run => {
+            run.results.forEach(res => {
+                // Ensure dates and arrays don't contain commas that break the CSV formatting
+                const cleanDate = new Date(run.createdAt).toLocaleString().replace(/,/g, '');
+                const errorMsg = `"${(res.errorMessage || "").replace(/"/g, '""')}"`;
+                const techniques = `"${(res.appliedTechniques || []).join(' | ')}"`;
+                const smells = `"${(res.identifiedCodeSmells || []).join(' | ')}"`;
+
+                const row = [
+                    run.id,
+                    cleanDate,
+                    res.providerName,
+                    res.isSuccess,
+                    res.durationSeconds.toFixed(2),
+                    run.originalLinesOfCode,
+                    res.newLinesOfCode,
+                    run.originalComplexity,
+                    res.newComplexity,
+                    run.originalMaintainabilityIndex.toFixed(2),
+                    res.newMaintainabilityIndex.toFixed(2),
+                    run.originalComplexity - res.newComplexity,
+                    (res.newMaintainabilityIndex - run.originalMaintainabilityIndex).toFixed(2),
+                    errorMsg,
+                    techniques,
+                    smells
+                ];
+                rows.push(row.join(","));
+            });
+        });
+
+        // 3. Create a Blob and trigger the browser download
+        const csvContent = rows.join("\n");
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", "RefactorAI_Benchmark_Data.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     const summary = useMemo(() => {
         if (!history || history.length === 0) return null;
 
@@ -85,8 +135,15 @@ export const StatisticsPage: React.FC<StatisticsPageProps> = ({ title = "Dissert
     return (
         <div className={styles.pageContainer}>
             <div className={styles.header}>
-                <h1>{title}</h1>
-                <p>Aggregated results from {summary.totalExperiments} code benchmarks.</p>
+                <div className={styles.headerText}>
+                    <h1>{title}</h1>
+                    <p>Aggregated results from {summary.totalExperiments} code benchmarks.</p>
+                </div>
+                
+                {/* --- NEW EXPORT BUTTON --- */}
+                <button className={styles.exportBtn} onClick={handleDownloadCsv}>
+                    📥 Download CSV Data
+                </button>
             </div>
 
             {/* HIGH-LEVEL SUMMARY CARDS */}

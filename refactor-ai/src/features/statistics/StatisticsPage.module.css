@@ -9,18 +9,42 @@
 
 .header {
     margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
 }
 
-.header h1 {
+.headerText h1 {
     color: #0f172a;
     font-size: 2rem;
     margin: 0 0 5px 0;
 }
 
-.header p {
+.headerText p {
     color: #64748b;
     margin: 0;
     font-size: 1.1rem;
+}
+
+/* New Export Button */
+.exportBtn {
+    background-color: #10b981;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background-color 0.2s;
+    box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
+}
+
+.exportBtn:hover {
+    background-color: #059669;
 }
 
 /* High-Level Summary Cards */

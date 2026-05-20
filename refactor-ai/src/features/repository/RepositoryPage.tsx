@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Editor, { type OnMount } from '@monaco-editor/react';
-import * as monaco from 'monaco-editor'; // <--- Import Monaco
+import * as monaco from 'monaco-editor';
 import { cloneRepository, getFileContent } from '../../services/repositoryService';
 import { refactorCode, runBenchmark } from '../../services/refactorService';
 import styles from './RepositoryPage.module.css';
@@ -27,19 +27,27 @@ export const RepositoryPage: React.FC = () => {
   const [isBenchmarking, setIsBenchmarking] = useState(false);
   const [benchmarkData, setBenchmarkData] = useState<BenchmarkResult | null>(null);
 
+  // --- NEW: Mass Refactor State ---
+  const [isMassRefactoring, setIsMassRefactoring] = useState(false);
+  const [massProgressIndex, setMassProgressIndex] = useState(0);
+  // This dictionary caches the results of the mass refactor by file path
+  const [massRefactorCache, setMassRefactorCache] = useState<Record<string, RefactorResponse>>({});
+
   // --- Refs ---
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const decorationsCollection = useRef<monaco.editor.IEditorDecorationsCollection | null>(null);
 
+  // Derived variable: Determines which refactor data to show for the currently selected file
+  const activeRefactorData = selectedFile 
+        ? massRefactorCache[selectedFile.fullPath] || refactorData 
+        : null;
+
   // --- Tooltip Logic ---
   const applyDecorations = (editor: monaco.editor.IStandaloneCodeEditor, changes: CodeChange[]) => {
     if (!editor || !changes) return;
-
-    // Clear old decorations
     if (decorationsCollection.current) {
         decorationsCollection.current.clear();
     }
-
     const newDecorations: monaco.editor.IModelDeltaDecoration[] = changes.map(change => ({
       range: new monaco.Range(change.lineNumber, 1, change.lineNumber, 1),
       options: {
@@ -51,19 +59,14 @@ export const RepositoryPage: React.FC = () => {
         }
       }
     }));
-
     decorationsCollection.current = editor.createDecorationsCollection(newDecorations);
   };
-  // File risk logic
+
   const flattenTree = (node: FileTreeNode): FileTreeNode[] => {
     let files: FileTreeNode[] = [];
-    if (node.type === 'file') {
-        files.push(node);
-    }
+    if (node.type === 'file') files.push(node);
     if (node.children) {
-        node.children.forEach(child => {
-            files = files.concat(flattenTree(child));
-        });
+        node.children.forEach(child => { files = files.concat(flattenTree(child)); });
     }
     return files;
   };
@@ -71,29 +74,24 @@ export const RepositoryPage: React.FC = () => {
   const topOffenders = React.useMemo(() => {
       if (!fileTree) return [];
       const allFiles = flattenTree(fileTree);
-      // Sort descending by risk score, take top 10
       return allFiles
           .filter(f => f.riskScore !== undefined)
           .sort((a, b) => (b.riskScore || 0) - (a.riskScore || 0))
           .slice(0, 10);
   }, [fileTree]);
 
-  // This fires when the "Optimized" editor is finally rendered
   const handleEditorDidMount: OnMount = (editor) => {
     editorRef.current = editor;
-    
-    // CRITICAL FIX: Apply decorations immediately if data is already waiting
-    if (refactorData && refactorData.changes) {
-        applyDecorations(editor, refactorData.changes);
+    if (activeRefactorData && activeRefactorData.changes) {
+        applyDecorations(editor, activeRefactorData.changes);
     }
   };
 
-  // Also re-apply if refactorData updates while editor is already open
   useEffect(() => {
-    if (editorRef.current && refactorData?.changes) {
-        applyDecorations(editorRef.current, refactorData.changes);
+    if (editorRef.current && activeRefactorData?.changes) {
+        applyDecorations(editorRef.current, activeRefactorData.changes);
     }
-  }, [refactorData]);
+  }, [activeRefactorData]);
 
   // --- Handlers ---
   const handleClone = async () => {
@@ -101,7 +99,8 @@ export const RepositoryPage: React.FC = () => {
     setIsCloning(true);
     setFileTree(null); 
     setSelectedFile(null); 
-    setRefactorData(null); 
+    setRefactorData(null);
+    setMassRefactorCache({}); // Clear mass cache on new clone
     try {
       const tree = await cloneRepository(url);
       setFileTree(tree);
@@ -109,27 +108,6 @@ export const RepositoryPage: React.FC = () => {
       alert("Failed to clone.");
     } finally {
       setIsCloning(false);
-    }
-  };
-
-  const handleRunExperiment = async () => {
-    if (!originalCode || !selectedFile) return;
-
-    setIsBenchmarking(true);
-    setRefactorData(null); // Clear single mode
-    setBenchmarkData(null); // Clear previous benchmark
-
-    try {
-        const result = await runBenchmark({
-            code: originalCode,
-            language: 'csharp',
-            providers: [AiProvider.Gemini, AiProvider.Groq, AiProvider.HuggingFace] 
-        });
-        setBenchmarkData(result);
-    } catch (error) {
-        alert("Benchmark failed.");
-    } finally {
-        setIsBenchmarking(false);
     }
   };
 
@@ -162,16 +140,74 @@ export const RepositoryPage: React.FC = () => {
       });
       setRefactorData(response);
     } catch (error) {
-      console.error(error);
       alert("Refactoring failed.");
     } finally {
       setIsRefactoring(false);
     }
   };
 
+  // --- NEW: MASS REFACTOR SEQUENTIAL LOGIC ---
+  const handleMassRefactor = async () => {
+      if (topOffenders.length === 0) return;
+      
+      setIsMassRefactoring(true);
+      setMassProgressIndex(0);
+      
+      for (let i = 0; i < topOffenders.length; i++) {
+          const file = topOffenders[i];
+          setMassProgressIndex(i + 1); // Update UI to show current file
+          
+          // Skip if we already successfully refactored this file in the cache
+          if (massRefactorCache[file.fullPath]) continue; 
+
+          try {
+              // 1. Fetch the file content
+              const fileContentResponse = await getFileContent(file.fullPath);
+              
+              // 2. Send to AI
+              const aiResponse = await refactorCode({
+                  code: fileContentResponse.content,
+                  language: 'csharp',
+                  provider: selectedProvider
+              });
+
+              // 3. Save to cache immediately so UI updates
+              setMassRefactorCache(prev => ({
+                  ...prev,
+                  [file.fullPath]: aiResponse
+              }));
+
+          } catch (error) {
+              console.error(`Failed to mass refactor ${file.name}`, error);
+              // We continue the loop even if one file fails to prevent a complete halt
+          }
+      }
+      setIsMassRefactoring(false);
+  };
+
+  const handleRunExperiment = async () => {
+      // ... your existing experiment logic
+      if (!originalCode || !selectedFile) return;
+      setIsBenchmarking(true);
+      setRefactorData(null); 
+      setBenchmarkData(null); 
+      try {
+          const result = await runBenchmark({
+              code: originalCode, language: 'csharp',
+              providers: [AiProvider.Gemini, AiProvider.Groq, AiProvider.HuggingFace] 
+          });
+          setBenchmarkData(result);
+      } catch (error) {
+          alert("Benchmark failed.");
+      } finally {
+          setIsBenchmarking(false);
+      }
+  };
+
   // --- Render ---
   return (
     <div className={styles.container}>
+      {/* TOOLBAR */}
       <div className={styles.toolbar}>
         <input 
           className={styles.input}
@@ -183,62 +219,92 @@ export const RepositoryPage: React.FC = () => {
             value={selectedProvider}
             onChange={(e) => setSelectedProvider(Number(e.target.value))}
             className={styles.select}
+            disabled={isMassRefactoring}
         >
             <option value={AiProvider.OpenAi}>ChatGPT (OpenAI)</option>
-            <option value={AiProvider.Groq}>Groq (Nvdia)</option>
+            <option value={AiProvider.Groq}>Groq (Nvidia)</option>
             <option value={AiProvider.Gemini}>Gemini (Google)</option>
             <option value={AiProvider.HuggingFace}>Qwen (Hugging Face)</option>
         </select>
-        <button className={styles.button} onClick={handleClone} disabled={isCloning}>
+        <button className={styles.button} onClick={handleClone} disabled={isCloning || isMassRefactoring}>
           {isCloning ? 'Cloning...' : 'Analyze Repo'}
         </button>
       </div>
 
       <div className={styles.mainContent}>
-        {/* 2. Sidebar (NOW WITH TABS) */}
+        {/* SIDEBAR */}
         <div className={styles.sidebar}>
           {isCloning ? (
              <div style={{ padding: 20, textAlign: 'center' }}><Spinner /></div>
           ) : fileTree ? (
              <>
-                {/* Tabs Header */}
                 <div className={styles.sidebarTabs}>
-                    <button 
-                        className={`${styles.tab} ${activeTab === 'tree' ? styles.tabActive : ''}`}
-                        onClick={() => setActiveTab('tree')}
-                    >
+                    <button className={`${styles.tab} ${activeTab === 'tree' ? styles.tabActive : ''}`} onClick={() => setActiveTab('tree')}>
                         File Explorer
                     </button>
-                    <button 
-                        className={`${styles.tab} ${activeTab === 'hotspots' ? styles.tabActive : ''}`}
-                        onClick={() => setActiveTab('hotspots')}
-                    >
+                    <button className={`${styles.tab} ${activeTab === 'hotspots' ? styles.tabActive : ''}`} onClick={() => setActiveTab('hotspots')}>
                         Top 10 Hotspots
                     </button>
                 </div>
 
-                {/* Tab Content */}
-                <div style={{ padding: '10px 0' }}>
+                <div style={{ padding: '0' }}>
                     {activeTab === 'tree' ? (
                         <FileTree node={fileTree} onFileClick={(node) => setSelectedFile(node)} />
                     ) : (
-                        <div className={styles.hotspotList}>
-                            {topOffenders.map((file, index) => (
-                                <div 
-                                    key={file.fullPath} 
-                                    className={styles.hotspotItem}
-                                    onClick={() => setSelectedFile(file)}
-                                    style={{ backgroundColor: selectedFile?.fullPath === file.fullPath ? '#e2e8f0' : '' }}
+                        <div className={styles.hotspotsContainer}>
+                            
+                            {/* NEW: MASS REFACTOR HEADER UI */}
+                            <div className={styles.massRefactorHeader}>
+                                <button 
+                                    className={styles.massRefactorBtn}
+                                    onClick={handleMassRefactor}
+                                    disabled={isMassRefactoring || topOffenders.length === 0}
                                 >
-                                    <div className={styles.hotspotName}>
-                                        {index + 1}. {file.name}
+                                    {isMassRefactoring 
+                                        ? `⚡ Processing ${massProgressIndex} of ${topOffenders.length}...` 
+                                        : '✨ Auto-Fix All Hotspots'}
+                                </button>
+                                {isMassRefactoring && (
+                                    <div className={styles.progressContainer}>
+                                        <div 
+                                            className={styles.progressBar} 
+                                            style={{ width: `${(massProgressIndex / topOffenders.length) * 100}%` }} 
+                                        />
                                     </div>
-                                    <div className={styles.hotspotMetrics}>
-                                        <span>Cmp: {file.cyclomaticComplexity}</span>
-                                        <span className={styles.hotspotScore}>Risk: {Math.round(file.riskScore || 0)}</span>
-                                    </div>
-                                </div>
-                            ))}
+                                )}
+                            </div>
+
+                            {/* HOTSPOTS LIST */}
+                            <div className={styles.hotspotList}>
+                                {topOffenders.map((file, index) => {
+                                    // Determine the status icon
+                                    const isProcessed = !!massRefactorCache[file.fullPath];
+                                    const isCurrentlyProcessing = isMassRefactoring && massProgressIndex === index + 1;
+                                    
+                                    return (
+                                        <div 
+                                            key={file.fullPath} 
+                                            className={styles.hotspotItem}
+                                            onClick={() => setSelectedFile(file)}
+                                            style={{ backgroundColor: selectedFile?.fullPath === file.fullPath ? '#e2e8f0' : '' }}
+                                        >
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <div className={styles.hotspotName}>
+                                                    {index + 1}. {file.name}
+                                                </div>
+                                                {/* NEW: Status Icon */}
+                                                <div className={styles.hotspotStatus}>
+                                                    {isProcessed ? '✅' : isCurrentlyProcessing ? '⏳' : ''}
+                                                </div>
+                                            </div>
+                                            <div className={styles.hotspotMetrics}>
+                                                <span>Cmp: {file.cyclomaticComplexity}</span>
+                                                <span className={styles.hotspotScore}>Risk: {Math.round(file.riskScore || 0)}</span>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
                     )}
                 </div>
@@ -248,6 +314,7 @@ export const RepositoryPage: React.FC = () => {
           )}
         </div>
         
+        {/* RIGHT CONTENT AREA */}
         <div className={styles.contentArea}>
             {!selectedFile ? (
               <div className={styles.emptyState}>
@@ -262,7 +329,7 @@ export const RepositoryPage: React.FC = () => {
                         <button 
                           className={styles.refactorBtn} 
                           onClick={handleRefactorCurrentFile}
-                          disabled={isRefactoring || isFetchingFile}
+                          disabled={isRefactoring || isFetchingFile || isMassRefactoring}
                         >
                           {isRefactoring ? 'Optimizing...' : '⚡ Refactor This File'}
                         </button>
@@ -270,14 +337,15 @@ export const RepositoryPage: React.FC = () => {
                           className={styles.refactorBtn} 
                           style={{ backgroundColor: '#8b5cf6' }} 
                           onClick={handleRunExperiment}
-                          disabled={isRefactoring || isBenchmarking}
+                          disabled={isRefactoring || isBenchmarking || isMassRefactoring}
                         >
                           {isBenchmarking ? 'Running Race...' : '🧪 Run Experiment'}
                         </button>
                       </div>
                   </div>
 
-                  {refactorData ? (
+                  {/* USE THE DERIVED activeRefactorData INSTEAD OF refactorData */}
+                  {activeRefactorData ? (
                       <>
                         <div className={styles.splitEditorContainer}>
                             <div className={styles.editorPane}>
@@ -289,31 +357,23 @@ export const RepositoryPage: React.FC = () => {
                                 />
                             </div>
                             <div className={styles.editorPane}>
-                                <div className={styles.paneTitle} style={{ color: '#10b981' }}>Optimized</div>
-                                <Editor 
+                                <div className={styles.paneTitle} style={{ color: '#10b981' }}>Optimized Code</div>                                <Editor 
                                     height="100%" defaultLanguage="csharp" 
-                                    value={refactorData.refactoredCode} 
+                                    value={activeRefactorData.refactoredCode} 
                                     onMount={handleEditorDidMount} 
-                                    options={{ 
-                                        readOnly: true, 
-                                        minimap: { enabled: false },
-                                        glyphMargin: true 
-                                    }} 
+                                    options={{ readOnly: true, minimap: { enabled: false }, glyphMargin: true }} 
                                 />
                             </div>
                         </div>
                         
-                        {/* Metrics Dashboard appears here if Backend sent metrics */}
                         <div style={{ padding: '0 20px 40px 20px', flexShrink: 0 }}>
-                            <MetricsDashboard response={refactorData} />
+                            <MetricsDashboard response={activeRefactorData} />
                         </div>
                       </>
                   ) : (
                       <>
                         <div className={styles.singleEditorContainer}>
-                            {isFetchingFile && (
-                                <div className={styles.loadingOverlay}><Spinner /></div>
-                            )}
+                            {isFetchingFile && <div className={styles.loadingOverlay}><Spinner /></div>}
                             <Editor 
                                 height="100%" defaultLanguage="csharp" 
                                 value={originalCode} 
@@ -321,7 +381,6 @@ export const RepositoryPage: React.FC = () => {
                             />
                         </div>
 
-                        {/* FIXED LOCATION: Benchmark Dashboard placed here! */}
                         {(benchmarkData || isBenchmarking) && (
                             <div style={{ padding: '0 20px 40px 20px', flexShrink: 0 }}>
                                 <BenchmarkDashboard result={benchmarkData} isLoading={isBenchmarking} />
